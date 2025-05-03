@@ -1,0 +1,24 @@
+[project]
+name = "git-legal"
+version = "0.1.0"
+description = "Download data from BOE (Boletín Oficial del Estado) API"
+authors = [
+    {name = "Git Legal Team"}
+]
+readme = "README.md"
+requires-python = ">=3.8"
+dependencies = [
+    "requests>=2.32.3",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+]
+
+[project.scripts]
+git-legal = "git_legal.cli:main"
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
