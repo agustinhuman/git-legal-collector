@@ -5,121 +5,98 @@ Command-line interface for the git-legal application.
 import argparse
 import logging
 import sys
+from datetime import datetime
 from typing import List, Optional
 
 from git_legal.config import Config
 from git_legal.downloader import BOEDownloader
 
+logging.basicConfig(
+    level=logging.WARNING,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+
 logger = logging.getLogger(__name__)
 
-def parse_args(args: Optional[List[str]] = None) -> argparse.Namespace:
+def parse_args(args: Optional[List[str]] = None) -> Config:
     """Parse command-line arguments."""
     parser = argparse.ArgumentParser(
         description="Download BOE data from the public administration API."
     )
     
     parser.add_argument(
-        "--end-date",
-        type=str,
-        help="End date in YYYYMMDD format. If not provided, uses the resume state or default (19800101)."
-    )
-    
-    parser.add_argument(
-        "--concurrent",
-        action="store_true",
-        help="Use concurrent downloading instead of sequential."
-    )
-    
-    parser.add_argument(
-        "--workers",
+        "--start",
         type=int,
-        default=5,
-        help="Number of concurrent workers (default: 5). Only used with --concurrent."
+        default=19700101,
+        help="End date in YYYYMMDD format. If not provided, uses the resume state or default (19700101)."
+    )
+
+    parser.add_argument(
+        "--end",
+        type=int,
+        default=int(datetime.now().strftime("%Y%m%d")),
+        help="End date in YYYYMMDD format. If not provided, uses the resume state or today as default."
     )
     
     parser.add_argument(
-        "--use-proxy",
-        action="store_true",
-        help="Use Bright Data residential proxy for requests."
-    )
-    
-    parser.add_argument(
-        "--proxy-url",
-        type=str,
-        help="Bright Data residential proxy URL. Required if --use-proxy is specified."
+        "--concurrency",
+        default=1,
+        type=int,
+        help="Max number of concurrent requests (default to one)"
     )
     
     parser.add_argument(
         "--cooldown",
         type=float,
         default=1.0,
-        help="Cooldown between requests in seconds (default: 1.0)."
+        help="Cooldown between requests in seconds. Has no effect if --concurrency is greater than one."
     )
     
     parser.add_argument(
-        "--output-dir",
+        "--output",
         type=str,
-        help="Directory to store output files (default: ./data)."
+        default="data",
+        help="Directory to store output files (default: ./boe_data)."
     )
     
     parser.add_argument(
-        "--csv-filename",
-        type=str,
-        help="Name of the CSV file to store data (default: boe_data.csv)."
+        "--index-only",
+        type=bool,
+        default=False,
+        help="Only download the list of BOEs, not the BOEs itself."
     )
 
     parser.add_argument(
-        "target",
+        "--format",
+        action="append",
         type=str,
-        default="index",
-        choices=["index", "document"],
+        choices=["xml", "html", "pdf"],
+        help="Format of the downloaded files.."
     )
     
-    return parser.parse_args(args)
+    parsed_args =  parser.parse_args(args)
+
+    config = Config()
+
+    for arg in vars(parsed_args):
+        value = getattr(parsed_args, arg)
+        if value is not None:
+            setattr(config, arg, getattr(parsed_args, arg))
+
+    config.ensure_output_dir()
+    if config.concurrency > 1:
+        parsed_args.cooldown = 0.0
+    return config
+
 
 def main(args: Optional[List[str]] = None) -> int:
     """Main entry point for the application."""
-    parsed_args = parse_args(args)
-    
-    # Create configuration
-    config = Config()
-    
-    # Update configuration from command-line arguments
-    if parsed_args.end_date:
-        config.end_date = parsed_args.end_date
-    
-    if parsed_args.use_proxy:
-        config.use_proxy = True
-        if parsed_args.proxy_url:
-            config.proxy_url = parsed_args.proxy_url
-        else:
-            logger.error("--proxy-url is required when --use-proxy is specified")
-            return 1
-    
-    if parsed_args.concurrent:
-        config.concurrent_requests = parsed_args.workers
-    
-    if parsed_args.cooldown:
-        config.cooldown_seconds = parsed_args.cooldown
-    
-    if parsed_args.output_dir:
-        config.output_dir = parsed_args.output_dir
-    
-    if parsed_args.csv_filename:
-        config.csv_filename = parsed_args.csv_filename
+    config = parse_args(args)
 
-    config.target = parsed_args.target
-    
-    # Create downloader
     downloader = BOEDownloader(config)
     
     try:
-        # Run the appropriate download method
-        if parsed_args.concurrent:
-            total_saved = downloader.download_concurrent(parsed_args.end_date, config.target)
-        else:
-            total_saved = downloader.download_sequential(parsed_args.end_date, config.target)
-        
+        total_saved = downloader.start()
         logger.info(f"Download completed successfully. Total items saved: {total_saved}")
         return 0
     

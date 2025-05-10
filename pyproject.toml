@@ -8,7 +8,10 @@ authors = [
 readme = "README.md"
 requires-python = ">=3.8"
 dependencies = [
+    "numpy>=1.24.4",
+    "pandas>=2.0.3",
     "requests>=2.32.3",
+    "tqdm>=4.67.1",
 ]
 
 [project.optional-dependencies]
@@ -18,7 +21,3 @@ dev = [
 
 [project.scripts]
 git-legal = "git_legal.cli:main"
-
-[build-system]
-requires = ["setuptools>=61.0"]
-build-backend = "setuptools.build_meta"
