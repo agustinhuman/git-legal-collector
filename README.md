@@ -27,6 +27,8 @@ The application can be run from the command line:
 git-legal [options]
 ```
 
+By default it will download all laws in xml and store them in the folder structure: "data/xml /<seccion>/<year>/<name>.xml"
+
 #### Options
 
 -  `-h, --help`            Show help

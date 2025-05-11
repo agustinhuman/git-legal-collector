@@ -85,8 +85,9 @@ class FileStorage:
 
     def save_item(self, data: str, law_info: LawInfo, extension: str = "pdf" ):
         seccion = law_info.seccion_nombre or "OTROS"
+        year = str(round((law_info.fecha_publicacion or 0) // 10000))
         key = law_info.identificador
-        folder = Path(self.config.output) / extension / seccion
+        folder = Path(self.config.output) / extension / seccion / year
         folder.mkdir(parents=True, exist_ok=True)
         path = folder / f"{key}.{extension}"
         with open(path, 'w', encoding='utf-8') as f:
